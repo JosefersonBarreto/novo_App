@@ -1,0 +1,885 @@
+---
+title: "Dashboard com biblioteca 4echarts"
+output:
+  flexdashboard::flex_dashboard:
+    css: www/teste.css
+    orientation: rows
+    vertical_layout: fill
+    self_contained: yes
+    logo: www/UEPB.png
+    social: menu
+runtime: shiny
+resource_files:
+- imagens/calça.png
+- "imagens/camiseta-azul.png"
+- imagens/Sapatos2.png
+- imagens/UEPB.png
+---
+
+
+
+
+
+
+```{r setup, include=FALSE}
+#getwd()
+rm(list = ls())
+library(flexdashboard)
+library(shiny)
+library(leaflet)
+library(tidyverse)
+library(plotly)
+library(knitr)
+library(lubridate)
+library(readxl)
+library(shinyWidgets)
+library(echarts4r)
+
+filtrarColuna = function(dados,entrada,coluna){ # função para o processo de filtragem
+  if(entrada == "Todos"){
+    return (dados)
+  }else{
+    dados_para_a_tabela =  dados %>%
+    filter(!!as.symbol(coluna) == entrada)
+
+    return(dados_para_a_tabela)
+  }
+}
+#dados<-read_excel("dados.xlsx",sheet = 3)
+
+dados<-read_xlsx("dados.xlsx",sheet = 3)
+# dados<-read.csv("dados1.csv",sep = ";",header = T,fileEncoding="Utf-8")
+# read.csv2("dados1.csv",sep = ";",header = T,encoding = "Latin1",fileEncoding="Latin1")
+# dados<-read.csv("dados1.csv",encoding = "ISO-8859-1",sep = ";")
+
+# dados$Produto[dados$Produto == "Produto A"] <- "camisas"
+# dados$Produto[dados$Produto == "Produto B"] <- "calcados"
+# dados$Produto[dados$Produto == "Produto C"] <- "calcas"
+#glimpse(dados)
+dados$ano<-factor(year(dados$Data))
+dados$mes<-factor(month(dados$Data))
+dados$mes<-  factor(dados$mes,levels = c('1','2','3','4','5','6','7','8','9','10','11','12'),
+         labels = c('jan','fev','mar','abr','mai','jun','jul','ago','set','out',
+                    'nov','dez'))
+
+# tabela_distinct<-dados %>%
+#   distinct(dados$p,Preço,Pgto.,`Nº Parcelas`,Parcelamento)
+
+dados$trimestre<- dados$mes
+colnames(dados)[2]<-'Preco'
+colnames(dados)[3]<-'Pagamento'
+colnames(dados)[4]<-'Numero_parcelas'
+
+colnames(dados)[11]<-'Regiao'
+
+ # tabela_distinct$Produto<- factor(dados$Produto,levels = c('Produto A','Produto B','Produto C'),
+ #         labels = c('Camisas','calçados','calças'))
+dados<-dados %>% arrange(mes)
+
+t1<-dados %>% filter(mes== "jan" | mes== "fev" | mes == "mar") %>%
+  mutate(trimestre="tri1")
+
+
+t2<-dados %>% filter(mes== "mai" | mes== "abr" | mes == "jun") %>%
+  mutate(trimestre="tri2")
+
+t3<-dados %>% filter(mes== "jul" | mes== "ago" | mes == "set") %>%
+  mutate(trimestre="tri3")
+
+
+t4<-dados %>% filter(mes== "out" | mes== "nov" | mes == "dez") %>%
+  mutate(trimestre="tri4")
+
+dados<-bind_rows(t1,t2,t3,t4
+          )
+
+
+dados$abbrev_state<-factor(dados$Estado,levels = c("Amazonas" ,"Ceará","Minas Gerais","Espírito Santo" ,    
+                                                   "Pernambuco","São Paulo","Sergipe" ,"Mato Grosso do Sul" ,
+                                                   "Rio de Janeiro","Rio Grande do Norte", "Bahia","Rio Grande do Sul",  
+                                                   "Distrito Federal","Goiás" ,"Paraná","Paraíba",           
+                                                   "Roraima","Rondônia","Santa Catarina" ,"Maranhão",           
+                                                   "Mato Grosso" ,"Piauí" ,"Pará" ,"Alagoas",            
+                                                   "Tocantins" ,"Amapá","Acre" ),
+                           labels = c("AM","CE","MG","ES","PE","SP",
+"SE","MS","RJ","RN","BA","RS","DF","GO","PR","PB","RR","RO","SC","MA","MT","PI",
+"PA","AL","TO","AM","AC"))
+
+dados$cidades<-factor(dados$Estado,levels = c("Amazonas" ,"Ceará","Minas Gerais","Espírito Santo" ,    
+"Pernambuco","São Paulo","Sergipe" ,"Mato Grosso do Sul" ,
+  "Rio de Janeiro","Rio Grande do Norte", "Bahia","Rio Grande do Sul",  
+   "Distrito Federal","Goiás" ,"Paraná","Paraíba",           
+     "Roraima","Rondônia","Santa Catarina" ,"Maranhão",           
+    "Mato Grosso" ,"Piauí" ,"Pará" ,"Alagoas",            
+    "Tocantins" ,"Amapá","Acre" ),
+                           labels = c("MANAUS","FORTALEZA","BELO HORIZONTE","VITÓRIA","RECIFE","SÃO PAULO",
+"ARACAJÚ","CUIABÁ","RIO JANEIRO","NATAL","SALVADOR","PORTO ALEGRE","BRASÍLIA","GOIÂNIA","BOA VISTA","JOÃO PESSOA","BOA VISTA","PORTO VELHO","FLORIANÓPOLIS","SÃO LUIZ","CUIABÁ","PIAUÍ",
+"BELÉM","MACEIÓ","PALMAS","MANAUS","RIO BRANCO"))
+
+
+
+# dados$cidades<-str_to_title(dados$cidades) 
+# library(geobr)
+# library(stringr)
+# geo<-read_state(
+#   showProgress = FALSE
+# )
+# 
+# v1<-unique(dados$Estado)
+# v<-unique(dados$cidades)
+# 
+# ge<-geobr::read_state(code_state = "all")
+# mun<-geobr::read_municipality(code_muni = "all")
+
+
+# teste<-read.csv("C:/Users/joseferson/Documents/joseferson barreto/curso-dashboards-com-shiny/semana_03/base_geolocalizacao_br.csv",sep = ",")
+
+
+
+# 
+# glimpse(t)
+# t<-inner_join(teste,geo,by = c("codigo_uf" = "code_state"))
+
+# t<-t[1:10]
+
+
+# teste1<-merge(x = dados, y = geo, by = "abbrev_state", all.x = TRUE)
+# 
+# 
+# colnames(t)[8]<-"code_state"
+# colnames(teste1)[17]<-"nome"
+# teste1$name_state
+# teste2<-right_join(teste1,t, by = c("name_state"))
+# 
+# ttt<-merge(t,teste1, by.x = "nome", by.y = "cidades",all.y = TRUE)
+# 
+# teste2<-anti_join(t,teste1, by = c("nome"))
+# sera<- right_join(dados,t,by = c("abbrev_state" = "abbrev_state"))
+# 
+# dados1<-left_join(dados,geo,by = c("abbrev_state" = "abbrev_state"))
+
+
+
+
+
+# dados1 <<-dados1[1:20]
+# 
+# tt<-semi_join(teste,dados1,by = c("codigo_uf" = "code_state"))
+```
+
+
+
+
+
+
+
+Dash
+================================
+
+
+
+
+
+```{r }
+
+#rm(list = ls())
+## Importação e organização dos dados
+
+
+
+#convert_to_date(tabela$Data, character_fun = lubridate::dmy)
+
+
+
+
+
+
+
+#comando para retirar o ano
+```
+
+Column {.sidebar}
+------------------------------------------------------------------
+
+```{r}
+selectInput(
+  inputId = "Produto",
+  label = "Produto",
+  choices = append(unique(dados$Produto), "Todos"),
+  selected = "Todos"
+)
+# selectInput(
+#   inputId = "Curso",
+#   label = "Curso",
+#   choices = append(unique(tabela_distinct$Curso), "Todos"),
+#   selected = "Todos"
+# )
+selectInput(
+  inputId = "tipoPagamento",
+  label = "Tipo de pagamento",
+  choices = append(unique(dados$Pagamento
+    #append(unique(tabela_distinct$`Tipo de Proteção`
+                          ), "Todos"),
+    #list('Patente','Software','Marca','Desenho Industrial','Todos'),
+  selected = 'Todos'
+)
+
+selectInput(
+  inputId = "Ano",
+  label = "Ano",
+  choices = append(unique(year(dados$Data)), "Todos"),
+  selected = 'Todos'
+)
+
+
+# observeEvent(input$Centro,{
+# updateSelectInput(
+#  inputId = "tipProtect",
+# choices = tabela_distinct %>%
+#  filter( Centro == input$Centro) %>%
+# pull(Tipo.de.Proteção) %>%
+#  unique()
+# )
+# })
+
+selectInput(
+  inputId = "Trimestre",
+  label = "trimestre",
+  choices =append(unique(dados$trimestre),
+    
+  #   factor(dados$trimestre,levels = c("tri1","tri2 ", "tri3 ", 
+  # "tri4"),labels = c("trimestre 1","trimestre 2 ",
+  #                                 "trimestre 3 ", "trimestre 4"))),
+  
+  "Todos"),
+   
+  
+  
+   #list('trimestre 1','trimestre 2','trimestre 3','trimestre 4','Todos'), #append(unique(tabela_distinct$`Tipo de Proteção`
+                         # ),
+ selected = 'Todos')
+
+#append(unique(factor(dados$trimestre,labels = c("trimestre 1","trimestre 2 ",
+                                                           # "trimestre 3 ", "trimestre 4"))
+    #append(unique(tabela_distinct$`Tipo de Proteção`
+                          #), "Todos")
+
+
+```
+
+
+
+
+Column    {data-width = 50}
+------------------------------------------------------------------
+
+### total de camisas
+
+```{r}
+renderValueBox({
+  
+   # dados_F_Produto = filtrarColuna(dados,input$Produto,"Produto")
+  
+dados_f_tri=  filtrarColuna(dados,input$Trimestre,"trimestre")#factor(input$Trimestre,
+       #levels = c("trimestre 1","trimestre 2 ", "trimestre 3 ", 
+         # "trimestre 4"),
+          #labels = c("tri1","tri2 ","tri3 ", "tri4")),"trimestre")
+    
+    #dados_F_Produto = filtrarColuna(dados_f_tri,input$Produto,"Produto")
+  
+  dados_F_Pagamento = filtrarColuna(dados_f_tri,input$tipoPagamento,"Pagamento")
+  
+  dados_f_ano =filtrarColuna(dados_F_Pagamento,input$Ano,"ano")
+  
+ # dados_f_por_ano = filtrarColuna(banco_filtrado_por_tipo_de_protecao,input$Ano,"Ano")
+  
+  if(nrow(dados_f_ano) != 0){
+    
+  t<-  dados_f_ano %>% 
+        filter(Produto == "Produto A") %>% 
+
+
+  summarise(Preco = sum(Preco))
+   # banco_filtrado_por_ano %>% select(Inventor,`Título do Ativo`,Data,`Instituição Responsável  pela P.I`)
+  }
+  # dados %>%
+  #  filter(Produto == "Produto A",
+  #    #Produto == input$Produto,
+  #    Pagamento == input$tipoPagamento,
+  #    ano == input$Ano
+  #     ) %>%
+  # 
+  # 
+  # summarise(Preco = sum(Preco))
+  
+  valueBox(value = t, icon ='fas fa-tshirt fa-pulse fa-spin fa-3x' , color = "#45738c")
+})
+ 
+```
+
+### vendas total  sapatos
+
+```{r}
+renderValueBox({
+  
+    
+    #dados_F_Produto = filtrarColuna(dados,input$Produto,"Produto")
+  
+ dados_f_tri=  filtrarColuna(dados,input$Trimestre,"trimestre")#factor(input$Trimestre,
+       #levels = c("trimestre 1","trimestre 2 ", "trimestre 3 ", 
+         # "trimestre 4"),
+          #labels = c("tri1","tri2 ","tri3 ", "tri4")),"trimestre")
+    
+   # dados_F_Produto = filtrarColuna(dados_f_tri,input$Produto,"Produto")
+  
+  dados_F_Pagamento = filtrarColuna(dados_f_tri,input$tipoPagamento,"Pagamento")
+  
+  dados_f_ano =filtrarColuna(dados_F_Pagamento,input$Ano,"ano")
+  
+ # dados_f_por_ano = filtrarColuna(banco_filtrado_por_tipo_de_protecao,input$Ano,"Ano")
+  
+  if(nrow(dados_f_ano) != 0){
+    
+       
+   t<- dados_f_ano %>% 
+        filter(Produto == "Produto B") %>% 
+
+
+  summarise(Preco = sum(Preco))
+   # banco_filtrado_por_ano %>% select(Inventor,`Título do Ativo`,Data,`Instituição Responsável  pela P.I`)
+  }
+  # dados %>%
+  #  filter(Produto == "Produto C",
+  #    #Produto == input$Produto,
+  #    Pagamento == input$tipoPagamento,
+  #    ano == input$Ano
+  #     ) %>%
+  # 
+  # 
+  # summarise(Preco = sum(Preco))
+  valueBox(value = t, icon ="fas fa-shoe-prints" , color = "#448556")
+  # <i class="fa-solid fa-boot"></i>
+  # dados %>%
+  #  filter(Produto == "Produto B",
+  #    #Produto == input$Produto,
+  #    Pagamento == input$tipoPagamento,
+  #    ano == input$Ano
+  #     ) %>%
+  # 
+  # 
+  # summarise(Preco = sum(Preco))
+})
+
+```
+
+
+<img src="https://www.infoescola.com/wp-content/uploads/2018/05/UEPB.png" width="1200" height="360" />
+
+### vendas total  calças
+
+```{r}
+renderValueBox({
+  
+  
+  
+    
+    #dados_F_Produto = filtrarColuna(dados,input$Produto,"Produto")
+  
+dados_f_tri=  filtrarColuna(dados,input$Trimestre,"trimestre")#factor(input$Trimestre,
+       #levels = c("trimestre 1","trimestre 2 ", "trimestre 3 ", 
+         # "trimestre 4"),
+          #labels = c("tri1","tri2 ","tri3 ", "tri4")),"trimestre")
+    
+    #dados_F_Produto = filtrarColuna(dados_f_tri,input$Produto,"Produto")
+  
+  dados_F_Pagamento = filtrarColuna(dados_f_tri,input$tipoPagamento,"Pagamento")
+  
+  dados_f_ano =filtrarColuna(dados_F_Pagamento,input$Ano,"ano")
+  
+ # dados_f_por_ano = filtrarColuna(banco_filtrado_por_tipo_de_protecao,input$Ano,"Ano")
+  
+  if(nrow(dados_f_ano) != 0){
+    
+   t<- dados_f_ano %>% 
+        filter(Produto == "Produto C") %>% 
+
+
+  summarise(Preco = sum(Preco))
+   # banco_filtrado_por_ano %>% select(Inventor,`Título do Ativo`,Data,`Instituição Responsável  pela P.I`)
+  }
+  # dados %>%
+  #  filter(Produto == "Produto C",
+  #    #Produto == input$Produto,
+  #    Pagamento == input$tipoPagamento,
+  #    ano == input$Ano
+  #     ) %>%
+  # 
+  # 
+  # summarise(Preco = sum(Preco))
+  valueBox(value = t, icon = "fas fa-money-check-alt", color = "orange")
+})
+
+
+
+```
+
+
+### Valor total
+
+```{r}
+renderValueBox({
+  
+  
+  
+    
+    #dados_F_Produto = filtrarColuna(dados,input$Produto,"Produto")
+  
+dados_f_tri=  filtrarColuna(dados,input$Trimestre,"trimestre")#factor(input$Trimestre,
+       #levels = c("trimestre 1","trimestre 2 ", "trimestre 3 ", 
+         # "trimestre 4"),
+          #labels = c("tri1","tri2 ","tri3 ", "tri4")),"trimestre")
+    
+    #dados_F_Produto = filtrarColuna(dados_f_tri,input$Produto,"Produto")
+  
+  dados_F_Pagamento = filtrarColuna(dados_f_tri,input$tipoPagamento,"Pagamento")
+  
+  dados_f_ano =filtrarColuna(dados_F_Pagamento,input$Ano,"ano")
+  
+ # dados_f_por_ano = filtrarColuna(banco_filtrado_por_tipo_de_protecao,input$Ano,"Ano")
+  
+  if(nrow(dados_f_ano) != 0){
+    
+   t<- dados_f_ano %>% 
+       
+
+
+  summarise(Preco = sum(Preco))
+   # banco_filtrado_por_ano %>% select(Inventor,`Título do Ativo`,Data,`Instituição Responsável  pela P.I`)
+  }
+  
+  # dados %>%
+  #  filter(Produto == "Produto C",
+  #    #Produto == input$Produto,
+  #    Pagamento == input$tipoPagamento,
+  #    ano == input$Ano
+  #     ) %>%
+  # 
+  # 
+  # summarise(Preco = sum(Preco))
+  
+  
+valueBox(value = t, icon = "fas fa-dollar-sign", color = "#7a8752")
+  
+})
+
+
+
+
+```
+
+
+
+
+Columns   {data-width=350}
+---
+
+### Valor Arecadado por Mês
+```{r}
+
+ # tabela_distinct %>% 
+ #    filter(
+ #      Produto == input$Produto,
+ #      Pgto. == input$tipoPagamento,
+ #      ano == input$ano
+ #      
+ #      )%>%]
+
+
+
+
+# 
+# dados %>%
+#   group_by(mes) %>%
+#   summarise(Preco = sum(Preco)) |>
+#   e_charts(x = mes ) %>% e_line(Preco, legend = F) %>%
+#     e_area(Preco, legend = F) %>%
+#     e_theme("dark")%>%
+#     e_tooltip(formatter = e_tooltip_item_formatter('currency'))
+
+
+
+
+renderEcharts4r({
+  
+       dados_f_tri=  filtrarColuna(dados,input$Trimestre,"trimestre")#factor(input$Trimestre,
+       #levels = c("trimestre 1","trimestre 2 ", "trimestre 3 ", 
+         # "trimestre 4"),
+          #labels = c("tri1","tri2 ","tri3 ", "tri4")),"trimestre")
+    
+    dados_F_Produto = filtrarColuna(dados_f_tri,input$Produto,"Produto")
+  
+  dados_F_Pagamento = filtrarColuna(dados_F_Produto,input$tipoPagamento,"Pagamento")
+  
+  dados_f_ano =filtrarColuna(dados_F_Pagamento,input$Ano,"ano")
+  
+ # dados_f_por_ano = filtrarColuna(banco_filtrado_por_tipo_de_protecao,input$Ano,"Ano")
+  
+  if(nrow(dados_f_ano) != 0){
+    
+    dados_f_ano %>% 
+        group_by(mes) %>%
+  summarise(Preco = sum(Preco))%>%
+   
+    #group_by(ano)%>%
+    e_charts(x = mes ) %>% e_line(Preco, legend = F) %>%
+    e_area(Preco, legend = F) %>%
+    e_theme("dark")%>%
+    e_tooltip(formatter = e_tooltip_item_formatter('currency'))|>
+      e_labels(show = TRUE,
+              fontSize = 9,position = 'outside')
+   # banco_filtrado_por_ano %>% select(Inventor,`Título do Ativo`,Data,`Instituição Responsável  pela P.I`)
+  }
+# dados %>%
+#    filter(
+#      Produto == input$Produto,
+#      Pagamento == input$tipoPagamento,
+#      ano == input$Ano
+#       ) %>%
+# 
+#   group_by(mes) %>%
+#   summarise(Preco = sum(Preco))%>%
+#    
+#     #group_by(ano)%>%
+#     e_charts(x = mes ) %>% e_line(Preco, legend = F) %>%
+#     e_area(Preco, legend = F) %>%
+#     e_theme("dark")%>%
+#     e_tooltip(formatter = e_tooltip_item_formatter('currency'))
+  
+})
+```
+
+### Valor Arrecadado por Estado
+```{r}
+
+renderLeaflet({
+  
+  
+       dados_f_tri=  filtrarColuna(dados,input$Trimestre,"trimestre")#factor(input$Trimestre,
+       #levels = c("trimestre 1","trimestre 2 ", "trimestre 3 ",
+         # "trimestre 4"),
+          #labels = c("tri1","tri2 ","tri3 ", "tri4")),"trimestre")
+
+    dados_F_Produto = filtrarColuna(dados_f_tri,input$Produto,"Produto")
+
+  dados_F_Pagamento = filtrarColuna(dados_F_Produto,input$tipoPagamento,"Pagamento")
+
+  dados_f_ano =filtrarColuna(dados_F_Pagamento,input$Ano,"ano")
+
+link <- c("https://www.google.com/maps/place/Farm%C3%A1cias+RedeMed/@-7.2344171,-35.9204724,17z/data=!3m1!4b1!4m5!3m4!1s0x7aea1a1c4df95ff:0x269284e8bc2e866a!8m2!3d-7.2344224!4d-35.9182837",
+          "https://www.google.com/maps/place/Belo+Horizonte,+MG/@-19.9024973,-44.1075771,12z/data=!3m1!4b1!4m5!3m4!1s0xa690cacacf2c33:0x5b35795e3ad23997!8m2!3d-19.919052!4d-43.9386685",
+          "https://www.google.com/maps/place/Rio+Branco,+AC/@-9.9863232,-67.9011372,12z/data=!3m1!4b1!4m5!3m4!1s0x917f7bb68acc96f3:0x8ab88f1d7f1d9b3c!8m2!3d-9.9740249!4d-67.8098191",
+          "https://www.google.com/maps/place/Macei%C3%B3,+AL/@-9.5945466,-35.8267652,11z/data=!3m1!4b1!4m5!3m4!1s0x70146fcd6688849:0xee2c725b43e07653!8m2!3d-9.6660417!4d-35.7352167",
+          "https://www.google.com/maps/place/Macap%C3%A1,+AP/@0.101772,-51.2369475,11z/data=!3m1!4b1!4m5!3m4!1s0x8d61e5e06b4b1a37:0x56357df330df0f97!8m2!3d0.0405217!4d-51.0560957",
+          "https://www.google.com/maps/place/Manaus,+AM/@-3.0444884,-60.037144,12z/data=!3m1!4b1!4m5!3m4!1s0x926c1bc8b37647b7:0x2b485c9ff765a9cc!8m2!3d-3.1190275!4d-60.",
+          "https://www.google.com/maps/place/Salvador+-+BA/@-12.8752954,-38.7819936,10z/data=!3m1!4b1!4m5!3m4!1s0x716037ca23ca5b3:0x1b9fc7912c226698!8m2!3d-12.9777334!4d-38.501648?hl=pt-BR",
+          "https://www.google.com/maps/place/Fortaleza+-+CE/@-3.7933031,-38.6597021,11z/data=!3m1!4b1!4m5!3m4!1s0x7c74c3f464c783f:0x4661c60a0c6b37ca!8m2!3d-3.7327203!4d-38.5270134",
+          "https://www.google.com/maps/place/Vit%C3%B3ria,+ES/@-20.2820964,-40.3574626,13z/data=!3m1!4b1!4m5!3m4!1s0xb83d5d85374ee9:0x97595e7ea70ed809!8m2!3d-20.3196644!4d-40.3384748",
+          "https://www.google.com/maps/place/Goi%C3%A2nia,+GO/@-16.6956997,-49.3743073,12z/data=!3m1!4b1!4m5!3m4!1s0x935ef6bd58d80867:0xef692bad20d2678e!8m2!3d-16.6868912!4d-49.2647943",
+          "https://www.google.com/maps/place/S%C3%A3o+Lu%C3%ADs+-+Vila+Maranh%C3%A3o,+S%C3%A3o+Lu%C3%ADs+-+MA/@-2.5604527,-44.4016503,12z/data=!3m1!4b1!4m5!3m4!1s0x7f68ff06f7f6d21:0x983102e459a3de47!8m2!3d-2.5306721!4d-44.2988947",
+          "https://www.google.com/maps/place/Cuiab%C3%A1+-+Coxip%C3%B3+da+Ponte,+Cuiab%C3%A1+-+MT/@-15.614363,-56.1818934,11z/data=!3m1!4b1!4m5!3m4!1s0x939da56670d84fc5:0x4e504e08900e510e!8m2!3d-15.5954142!4d-56.0925824",
+          "https://www.google.com/maps/place/Campo+Grande,+MS/@-20.4810437,-54.7756201,11z/data=!3m1!4b1!4m5!3m4!1s0x9486e6726b2b9f27:0xf5a8469ebc84d2c1!8m2!3d-20.4648517!4d-54.6218477",
+          "https://www.google.com/maps/place/Bel%C3%A9m+-+PA/@-1.2729905,-48.7404628,10z/data=!3m1!4b1!4m5!3m4!1s0x92a46669f5986e5f:0xe336db2d6ab189cc!8m2!3d-1.4563073!4d-48.5012804",
+          "https://www.google.com/maps/place/Curitiba,+PR/@-25.4950501,-49.4298839,11z/data=!3m1!4b1!4m5!3m4!1s0x94dce35351cdb3dd:0x6d2f6ba5bacbe809!8m2!3d-25.4372382!4d-49.2699727",
+          "https://www.google.com/maps/place/Teresina+-+PI/@-5.1863785,-43.0650159,10z/data=!3m1!4b1!4m5!3m4!1s0x78e34b4df8526b1:0x2c29cfbdbb7d7359!8m2!3d-5.0810984!4d-42.774291",
+          "https://www.google.com/maps/place/Rio+de+Janeiro,+RJ/@-22.9138851,-43.7261746,10z/data=!3m1!4b1!4m5!3m4!1s0x9bde559108a05b:0x50dc426c672fd24e!8m2!3d-22.9068467!4d-43.1728965",
+          "https://www.google.com/maps/place/Natal,+RN/@-5.7997439,-35.2922842,12z/data=!3m1!4b1!4m5!3m4!1s0x7b3aaac26460531:0x5d8b404cf00fed69!8m2!3d-5.7841695!4d-35.1999708",
+          "https://www.google.com/maps/place/Porto+Alegre,+RS/@-30.1087957,-51.3172272,11z/data=!3m1!4b1!4m5!3m4!1s0x95199cd2566acb1d:0x603111a89f87e91f!8m2!3d-30.0368176!4d-51.2089887",
+          "https://www.google.com/maps/place/Porto+Velho+-+RO/@-8.9813759,-66.7681913,7z/data=!3m1!4b1!4m5!3m4!1s0x922d328ca4a88c47:0x4380950ed6230760!8m2!3d-8.7635576!4d-63.8971704",
+          "https://www.google.com/maps/place/Boa+Vista,+RR/@2.8072825,-60.7683208,13z/data=!3m1!4b1!4m5!3m4!1s0x8d9305cacbaaa4db:0xb72e65c7a9d75f45!8m2!3d2.8206339!4d-60.6737553",
+          "https://www.google.com/maps/place/Florian%C3%B3polis,+SC/@-27.5713144,-48.75047,10z/data=!3m1!4b1!4m5!3m4!1s0x9527394eb2c632d7:0x81bc550b6a04c746!8m2!3d-27.5948036!4d-48.5569286",
+          "https://www.google.com/maps/place/S%C3%A3o+Paulo,+SP/@-23.6821604,-46.8754915,10z/data=!3m1!4b1!4m5!3m4!1s0x94ce448183a461d1:0x9ba94b08ff335bae!8m2!3d-23.5557714!4d-46.6395571",
+          "https://www.google.com/maps/place/Aracaju,+SE/@-11.0059758,-37.2432428,11z/data=!3m1!4b1!4m5!3m4!1s0x71ab04015be27cd:0x804434fd92ec3b36!8m2!3d-10.9266526!4d-37.0729014", 
+          "https://www.google.com/maps/place/Palmas,+TO/@-10.2600522,-48.4172749,12z/data=!3m1!4b1!4m5!3m4!1s0x933b3439911f1257:0x93b8070d05c818f!8m2!3d-10.249091!4d-48.3242858",
+          "https://www.google.com/maps/place/Bras%C3%ADlia,+DF/@-15.7217175,-48.0774443,11z/data=!3m1!4b1!4m5!3m4!1s0x935a3d18df9ae275:0x738470e469754a24!8m2!3d-15.7975154!4d-47.8918874",
+          "https://www.google.com/maps/place/Recife+-+PE/@-8.0421676,-35.0078895,12z/data=!3m1!4b1!4m5!3m4!1s0x7ab196f88c446e5:0x3c9ef52922447fd4!8m2!3d-8.0577401!4d-34.8829629"
+    )
+
+dados2<-stringr::str_match(link, '@(-?\\d+\\.\\d+),(-?\\d+\\.\\d+)')[, -1, drop = FALSE]
+
+
+
+library(leaflet)
+library(sf)
+
+dados2<- data.frame(dados2)
+
+dados2$X1<-as.double(dados2$X1)
+dados2$X2<-as.double(dados2$X2)
+dados2$nome<- c("Paraíba","Minas Gerais","Acre","Alagoas","Amapá","Amazonas",
+               "Bahia","Ceará","Espírito Santo","Goiás","Maranhão","Mato Grosso",
+               "Mato Grosso do Sul","Pará","Paraná","Piauí","Rio de Janeiro",
+               "Rio Grande do Norte", "Rio Grande do Sul","Rondônia",
+               "Roraima","Santa Catarina","São Paulo","Sergipe","Tocantins","Distrito Federal","Pernambuco")
+
+colnames(dados2)[3]<-"Estado"
+#m<- leaflet() %>% setView(lng=dados$X1, lat=dados$X2, zoom = 12)
+# m %>% addTiles() %>% 
+#   addMarkers(lng=dados$X1, lat=dados$X2)
+dados2$X1<-as.double(dados2$X1)
+dados2$X2<-as.double(dados2$X2)
+
+meuicon = iconList(makeIcon("https://images.vexels.com/media/users/3/142546/isolated/lists/2f6d0faa355125320122dc57e8b07084-icone-de-camiseta.png", iconWidth = 28, iconHeight = 28),makeIcon("https://svgsilh.com/svg_v2/158361.svg", iconWidth = 28, iconHeight = 28),
+  makeIcon("https://svgsilh.com/svg/304119.svg", iconWidth = 28, iconHeight = 28))
+
+link2<-"https://thumbs.dreamstime.com/b/conjunto-de-camisas-em-branco-isoladas-camisa-preta-mock-up-para-impress%C3%A3o-vis%C3%A3o-fundo-do-modelo-camiseta-isolada-simples-%C3%A9-203908094.jpg"
+ # dados_f_por_ano = filtrarColuna(banco_filtrado_por_tipo_de_protecao,input$Ano,"Ano")
+
+  if(nrow(dados_f_ano) != 0){
+
+  
+    
+  # color<-  factor(dados_f_ano,levels = c("Produto A","Produto B","Produto C"),labels = c("blue",
+  #   "purple","green"))
+  
+  
+  
+    
+    
+   datt<- dados_f_ano %>% 
+        group_by(Estado) %>%
+  summarise(Preco = sum(Preco))
+teste<-dados2|>
+  merge(datt , by = "Estado")
+
+
+data<-st_as_sf(teste,coords = c("X2","X1"),crs = 4326,remove = FALSE)
+
+markerColor = ifelse(dados_f_ano$Produto == "Produto A",'purple' ,
+                ifelse(dados_f_ano$Produto == "Produto B","blue",
+                       ifelse(dados_f_ano$Produto == "Produto C",'green','purple')))
+# =================================================================================
+#                            icones de arvores ,leaflet
+# =================================================================================
+# leafIcons <- icons(
+#   iconUrl = case_when(
+#     dados_f_ano$Produto == "Produto A" ~ "http://leafletjs.com/examples/custom-icons/leaf-green.png",
+#      dados_f_ano$Produto == "Produto B" ~ "http://leafletjs.com/examples/custom-icons/leaf-orange.png",
+#     dados_f_ano$Produto == "Produto C" ~ "http://leafletjs.com/examples/custom-icons/leaf-red.png"
+#   ),
+#   iconWidth = 38, iconHeight = 95,
+#   iconAnchorX = 22, iconAnchorY = 94,
+#   shadowUrl = "http://leafletjs.com/examples/custom-icons/leaf-shadow.png",
+#   shadowWidth = 50, shadowHeight = 64,
+#   shadowAnchorX = 4, shadowAnchorY = 62
+# )
+
+
+
+leafIcons <- icons(
+  iconUrl = case_when(
+    dados_f_ano$Produto == "Produto A" ~ "imagens/camiseta-azul.png",
+     dados_f_ano$Produto == "Produto B" ~"imagens/Sapatos2.png",
+    dados_f_ano$Produto == "Produto C" ~ "imagens/calça.png"
+  ),
+  iconWidth = 38, iconHeight = 38,
+  iconAnchorX = 28, iconAnchorY = 28
+ # shadowUrl = "http://leafletjs.com/examples/custom-icons/leaf-shadow.png",
+  #shadowWidth = 50, shadowHeight = 64,
+  #shadowAnchorX = 4, shadowAnchorY = 62
+)
+
+data  |>
+  leaflet()  |>
+  addTiles() |>
+  # Select from oceanIcons based on df$type
+  addMarkers(popup = paste0(data$Estado,": ", data$Preco, "R$"),icon = leafIcons)
+  #addMarkers
+# addAwesomeMarkers( popup = paste0(data$Estado,": ", data$Preco, "R$"),  icon = awesomeIcons(
+#       library = c("fa","glyphicon"),
+#       icon =  ifelse(
+#         test = dados_f_ano$Produto == "Produto A", 
+#         yes = "fa-users",
+#         no = ifelse(
+#         test = dados_f_ano$Produto == "Produto B", 
+#         yes =  "fa-bed",
+#         no = ifelse(
+#         test = dados_f_ano$Produto == "Produto C", 
+#         yes = "user",
+#         no = "fa-users"
+#       ))),
+#       iconColor = "#ffffff",
+#       markerColor = markerColor
+#       #   test = dados_f_ano$Produto == "Produto A", 
+#       #   yes = "purple",
+#       #   no = ifelse(
+#       #   test = dados_f_ano$Produto == "Produto B", 
+#       #   yes = "Blue",
+#       #   no = "purple"#c("darkpurpl
+#       )#c("darkpurpl
+#       )#c("darkpurple","darkpurple","green"))#meuicon
+#               
+
+
+  }
+  })
+
+#  t<- dados %>% 
+#         group_by(Estado) %>%
+#   summarise(Preco = sum(Preco))
+#  
+# tt<-dados2|>
+#   left_join(t , by = "Estado")
+```
+
+
+Columns    {data-width = 450}
+---
+
+### Valor Arrecadado por Trimestre, Camisas
+```{r}
+
+
+renderEcharts4r({
+ 
+dados_f_tri=  filtrarColuna(dados,input$Trimestre,"trimestre")#factor(input$Trimestre,
+       #levels = c("trimestre 1","trimestre 2 ", "trimestre 3 ", 
+         # "trimestre 4"),
+          #labels = c("tri1","tri2 ","tri3 ", "tri4")),"trimestre")
+    
+    #dados_F_Produto = filtrarColuna(dados_f_tri,input$Produto,"Produto")
+  
+  dados_F_Pagamento = filtrarColuna(dados_f_tri,input$tipoPagamento,"Pagamento")
+  
+  dados_f_ano =filtrarColuna(dados_F_Pagamento,input$Ano,"ano")
+  
+    if(nrow(dados_f_ano) != 0){
+    
+    dados_f_ano %>% 
+        filter( Produto == "Produto B") %>%
+        group_by(trimestre)%>% summarise(quant = sum(Preco)) %>% 
+      e_charts(x = trimestre) %>%
+      e_bar(quant, legend = F ,colorBy = "data") %>%
+        e_color(c("#45738c","#45738c","#45738c","#45738c"))|>
+      e_theme("dark") %>%
+      e_tooltip(trigger = "axis") %>%
+      e_labels(fontSize = 9) %>%
+      e_grid(containLabel = T) |>
+      e_x_axis(axisLabel = list(interval = 0, rotate = 0,fontSize = 9)) |>
+     e_labels(show = TRUE,
+              fontSize = 7)
+    }
+})
+    
+
+
+
+```
+
+### Valor Arrecadado por Trimestre, Sapatos
+```{r}
+ # dados %>%
+ #   filter(Produto == "Produto B",
+ #     #Produto == input$Produto,
+ #     Pagamento == input$tipoPagamento,
+ #     ano == input$Ano
+ #      ) %>%
+ #   group_by(Curso) %>% summarise(quant = n()) %>% 
+ #      e_charts(x = Curso) %>% 
+ #      e_bar(quant, legend = F ,colorBy = "data") %>% 
+ #      e_theme("dark") %>% 
+ #      e_tooltip(trigger = "axis") %>%
+ #      e_labels(fontSize = 9) %>%
+ #      e_grid(containLabel = T) |> 
+ #      e_x_axis(axisLabel = list(interval = 0, rotate = 45,fontSize = 9)) |>
+ #     e_labels(show = TRUE,
+ #              fontSize = 
+
+
+
+
+renderEcharts4r({
+ 
+dados_f_tri=  filtrarColuna(dados,input$Trimestre,"trimestre")#factor(input$Trimestre,
+       #levels = c("trimestre 1","trimestre 2 ", "trimestre 3 ", 
+         # "trimestre 4"),
+          #labels = c("tri1","tri2 ","tri3 ", "tri4")),"trimestre")
+    
+    #dados_F_Produto = filtrarColuna(dados_f_tri,input$Produto,"Produto")
+  
+  dados_F_Pagamento = filtrarColuna(dados_f_tri,input$tipoPagamento,"Pagamento")
+  
+  dados_f_ano =filtrarColuna(dados_F_Pagamento,input$Ano,"ano")
+  
+    if(nrow(dados_f_ano) != 0){
+    
+    dados_f_ano %>% 
+        filter( Produto == "Produto B") %>%
+        group_by(trimestre)%>% summarise(quant = sum(Preco)) %>% 
+      e_charts(x = trimestre) %>%
+      e_bar(quant, legend = F ,colorBy = "data") %>%
+        e_color(c("green","green","green","green"))|>
+      e_theme("dark") %>%
+      e_tooltip(trigger = "axis") %>%
+      e_labels(fontSize = 9) %>%
+      e_grid(containLabel = T) |>
+      e_x_axis(axisLabel = list(interval = 0, rotate = 0,fontSize = 9)) |>
+     e_labels(show = TRUE,
+              fontSize = 7)
+    }
+})
+```
+
+
+### Valor Arrecadado por Trimestre, Calças
+
+```{r}
+renderEcharts4r({
+ 
+dados_f_tri=  filtrarColuna(dados,input$Trimestre,"trimestre")#factor(input$Trimestre,
+       #levels = c("trimestre 1","trimestre 2 ", "trimestre 3 ", 
+         # "trimestre 4"),
+          #labels = c("tri1","tri2 ","tri3 ", "tri4")),"trimestre")
+    
+    #dados_F_Produto = filtrarColuna(dados_f_tri,input$Produto,"Produto")
+  
+  dados_F_Pagamento = filtrarColuna(dados_f_tri,input$tipoPagamento,"Pagamento")
+  
+  dados_f_ano =filtrarColuna(dados_F_Pagamento,input$Ano,"ano")
+  
+    if(nrow(dados_f_ano) != 0){
+    
+    dados_f_ano %>% 
+        filter( Produto == "Produto C") %>%
+        group_by(trimestre)%>% summarise(quant = sum(Preco)) %>% 
+      e_charts(x = trimestre) %>%
+      e_bar(quant, legend = F ,colorBy = "data") %>%
+        e_color(c("orange","orange","orange","orange"))|>
+      e_theme("dark") %>%
+      e_tooltip(trigger = "axis") %>%
+      e_labels(fontSize = 9) %>%
+      e_grid(containLabel = T) |>
+      e_x_axis(axisLabel = list(interval = 0, rotate = 0,fontSize = 9)) |>
+     e_labels(show = TRUE,
+              fontSize = 7)
+    }
+})
+
+```
+
+
+Turorial
+================================
+
+
+
+
+
+
+
+
+
+
+
+
+Sobre
+================================
